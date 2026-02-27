@@ -1,0 +1,52 @@
+{
+  "name": "claude-pretty",
+  "version": "1.0.0",
+  "description": "Visual terminal wrapper for Claude CLI - adds color-coded title bars, bordered sections, and project differentiation",
+  "type": "module",
+  "bin": {
+    "claude-pretty": "./bin/claude-pretty.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md",
+    ".claude-pretty.example.json"
+  ],
+  "scripts": {
+    "start": "node bin/claude-pretty.mjs",
+    "demo": "node lib/demo.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "cli",
+    "terminal",
+    "wrapper",
+    "visual",
+    "claude-code",
+    "anthropic",
+    "developer-tools"
+  ],
+  "author": "Manu Fosela",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manufosela/claude-pretty.git"
+  },
+  "homepage": "https://github.com/manufosela/claude-pretty#readme",
+  "bugs": {
+    "url": "https://github.com/manufosela/claude-pretty/issues"
+  },
+  "dependencies": {
+    "ansi-regex": "^6.2.2",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "cli-highlight": "^2.1.11",
+    "string-width": "^8.2.0",
+    "strip-ansi": "^7.2.0",
+    "wrap-ansi": "^10.0.0"
+  },
+  "optionalDependencies": {}
+}

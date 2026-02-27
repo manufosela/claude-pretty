@@ -1,0 +1,8 @@
+{
+  "project": "MES Intranet",
+  "preset": "green",
+  "model": "opus",
+  "sticky": true,
+  "showCwd": true,
+  "showTime": true
+}

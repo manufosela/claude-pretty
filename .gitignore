@@ -1,0 +1,10 @@
+node_modules/
+.claude/
+*.log
+.DS_Store
+/tmp/
+*.heapsnapshot
+.env
+.env.*
+mcp.user.json
+serviceAccountKey*.json
