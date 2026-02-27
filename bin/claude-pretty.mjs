@@ -95,15 +95,17 @@ async function askPermissionMode() {
   console.log()
   console.log(chalk.hex('#86efac')('  1) Safe')      + THEME.dim('       – Read-only (Read, Glob, Grep)'))
   console.log(chalk.hex('#93c5fd')('  2) Standard')   + THEME.dim('   – Read + Write + Edit + Bash + search'))
-  console.log(chalk.hex('#fca5a5')('  3) YOLO')       + THEME.dim('       – All permissions bypassed (dangerous)'))
+  console.log(chalk.hex('#c4b5fd')('  3) Full')       + THEME.dim('       – All tools + MCPs (acceptEdits)'))
+  console.log(chalk.hex('#fca5a5')('  4) YOLO')       + THEME.dim('       – All permissions bypassed (dangerous)'))
   console.log()
 
   return new Promise((resolve) => {
-    askRl.question(chalk.hex('#888')('  Choose [1/2/3]: '), (answer) => {
+    askRl.question(chalk.hex('#888')('  Choose [1/2/3/4]: '), (answer) => {
       askRl.close()
-      const choice = answer.trim()
+      const choice = answer.trim().toLowerCase()
       if (choice === '1' || choice === 'safe')     return resolve('safe')
-      if (choice === '3' || choice === 'yolo')     return resolve('yolo')
+      if (choice === '3' || choice === 'full')     return resolve('full')
+      if (choice === '4' || choice === 'yolo')     return resolve('yolo')
       // Default to standard
       return resolve('standard')
     })
@@ -130,12 +132,14 @@ function buildClaudeArgs(userPrompt) {
   if (config.permissionMode) {
     args.push('--permission-mode', config.permissionMode)
   }
-  // 3. Shorthand permission mode (safe/standard/yolo)
+  // 3. Shorthand permission mode (safe/standard/full/yolo)
   if (permissionMode) {
     const mode = PERMISSION_MODES[permissionMode]
     if (mode) {
       if (mode.dangerous) {
         args.push('--dangerously-skip-permissions')
+      } else if (mode.permissionMode) {
+        args.push('--permission-mode', mode.permissionMode)
       } else if (!config.allowedTools?.length) {
         // Only add allowedTools if not already set from config
         args.push('--allowedTools', mode.allowedTools)
@@ -364,7 +368,7 @@ if (!process.stdin.isTTY) {
     : null
 
   if (modeLabel) {
-    const modeColor = permissionMode === 'yolo' ? '#fca5a5' : permissionMode === 'safe' ? '#86efac' : '#93c5fd'
+    const modeColor = { safe: '#86efac', standard: '#93c5fd', full: '#c4b5fd', yolo: '#fca5a5' }[permissionMode] || '#93c5fd'
     console.log(THEME.dim('  Mode: stream-json') + chalk.hex(modeColor)(` [${modeLabel}]`))
     console.log()
     promptForInput()
@@ -373,7 +377,7 @@ if (!process.stdin.isTTY) {
     askPermissionMode().then((mode) => {
       permissionMode = mode
       const m = PERMISSION_MODES[mode]
-      const modeColor = mode === 'yolo' ? '#fca5a5' : mode === 'safe' ? '#86efac' : '#93c5fd'
+      const modeColor = { safe: '#86efac', standard: '#93c5fd', full: '#c4b5fd', yolo: '#fca5a5' }[mode] || '#93c5fd'
       console.log()
       console.log(THEME.dim('  Mode: stream-json') + chalk.hex(modeColor)(` [${m.label}]`))
       console.log()

@@ -120,18 +120,20 @@ Claude Code needs tool permissions to work. Choose one at startup or set it via 
 claude-pretty --project "MyApp" --preset green
 
 # Shorthand flags
-claude-pretty --safe          # Read-only (Read, Glob, Grep)
+claude-pretty --safe          # Read-only
+claude-pretty --full          # All tools + MCPs
 claude-pretty --yolo          # All permissions bypassed
 
 # Or via --permissions
 claude-pretty --permissions standard
 ```
 
-| Mode       | Flag          | Tools                                      |
-|------------|---------------|---------------------------------------------|
-| **Safe**   | `--safe`      | Read, Glob, Grep                            |
+| Mode         | Flag          | Tools / Behavior                             |
+|--------------|---------------|----------------------------------------------|
+| **Safe**     | `--safe`      | Read, Glob, Grep                             |
 | **Standard** | `--permissions standard` | Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch |
-| **YOLO**   | `--yolo`      | All (uses `--dangerously-skip-permissions`) |
+| **Full**     | `--full`      | All tools + MCPs (`--permission-mode acceptEdits`) |
+| **YOLO**     | `--yolo`      | All permissions bypassed (`--dangerously-skip-permissions`) |
 
 You can also set specific tools in `.claude-pretty.json`:
 
