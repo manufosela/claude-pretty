@@ -1,5 +1,5 @@
 {
-  "name": "claude-pretty",
+  "name": "@manufosela/claude-pretty",
   "version": "1.0.0",
   "description": "Visual terminal wrapper for Claude CLI - adds color-coded title bars, bordered sections, and project differentiation",
   "type": "module",
