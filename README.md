@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/npm/v/claude-pretty?style=flat-square&color=f97316&label=npm" alt="npm version">
-  <img src="https://img.shields.io/node/v/claude-pretty?style=flat-square&color=22c55e" alt="node version">
-  <img src="https://img.shields.io/npm/l/claude-pretty?style=flat-square&color=8b5cf6" alt="license">
-  <img src="https://img.shields.io/npm/dm/claude-pretty?style=flat-square&color=3b82f6" alt="downloads">
+  <img src="https://img.shields.io/npm/v/@manufosela/claude-pretty?style=flat-square&color=f97316&label=npm" alt="npm version">
+  <img src="https://img.shields.io/node/v/@manufosela/claude-pretty?style=flat-square&color=22c55e" alt="node version">
+  <img src="https://img.shields.io/npm/l/@manufosela/claude-pretty?style=flat-square&color=8b5cf6" alt="license">
+  <img src="https://img.shields.io/npm/dm/@manufosela/claude-pretty?style=flat-square&color=3b82f6" alt="downloads">
   <img src="https://img.shields.io/badge/Claude_Code-compatible-06b6d4?style=flat-square&logo=anthropic" alt="Claude Code compatible">
   <img src="https://img.shields.io/badge/ESM-only-fde68a?style=flat-square" alt="ESM only">
 </p>
@@ -52,7 +52,7 @@ When you have 3-4 Claude sessions open in different terminals, they all look the
 ## Install
 
 ```bash
-npm install -g claude-pretty
+npm install -g @manufosela/claude-pretty
 ```
 
 > **Prerequisite:** [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) must be installed and authenticated.
@@ -110,6 +110,39 @@ Drop a `.claude-pretty.json` in your project root:
 ```
 
 Then just run `claude-pretty` — it picks up the config automatically.
+
+## Permission modes
+
+Claude Code needs tool permissions to work. Choose one at startup or set it via flag/config:
+
+```bash
+# Interactive selector (asks on startup)
+claude-pretty --project "MyApp" --preset green
+
+# Shorthand flags
+claude-pretty --safe          # Read-only (Read, Glob, Grep)
+claude-pretty --yolo          # All permissions bypassed
+
+# Or via --permissions
+claude-pretty --permissions standard
+```
+
+| Mode       | Flag          | Tools                                      |
+|------------|---------------|---------------------------------------------|
+| **Safe**   | `--safe`      | Read, Glob, Grep                            |
+| **Standard** | `--permissions standard` | Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch |
+| **YOLO**   | `--yolo`      | All (uses `--dangerously-skip-permissions`) |
+
+You can also set specific tools in `.claude-pretty.json`:
+
+```json
+{
+  "project": "GameXP",
+  "preset": "orange",
+  "allowedTools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "TodoWrite"],
+  "permissionMode": "acceptEdits"
+}
+```
 
 ## Config options
 

@@ -1,6 +1,6 @@
 {
   "name": "@manufosela/claude-pretty",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Visual terminal wrapper for Claude CLI - adds color-coded title bars, bordered sections, and project differentiation",
   "type": "module",
   "bin": {
