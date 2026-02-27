@@ -95,8 +95,8 @@ async function askPermissionMode() {
   console.log()
   console.log(chalk.hex('#86efac')('  1) Safe')      + THEME.dim('       – Read-only (Read, Glob, Grep)'))
   console.log(chalk.hex('#93c5fd')('  2) Standard')   + THEME.dim('   – Read + Write + Edit + Bash + search'))
-  console.log(chalk.hex('#c4b5fd')('  3) Full')       + THEME.dim('       – All tools + MCPs (acceptEdits)'))
-  console.log(chalk.hex('#fca5a5')('  4) YOLO')       + THEME.dim('       – All permissions bypassed (dangerous)'))
+  console.log(chalk.hex('#c4b5fd')('  3) Full')       + THEME.dim('       – All tools + MCPs (auto-approved)'))
+  console.log(chalk.hex('#fca5a5')('  4) YOLO')       + THEME.dim('       – Bypass ALL security checks (dangerous)'))
   console.log()
 
   return new Promise((resolve) => {
@@ -124,11 +124,11 @@ function buildClaudeArgs(userPrompt) {
 
   // Permission handling (priority: CLI flags > .claude-pretty.json > interactive choice)
   //
-  // 1. Explicit allowedTools from config (most specific)
+  // 1. Explicit allowedTools from config file (most specific)
   if (config.allowedTools && config.allowedTools.length > 0) {
     args.push('--allowedTools', config.allowedTools.join(','))
   }
-  // 2. Claude's permissionMode from config
+  // 2. Claude's permissionMode from config file
   if (config.permissionMode) {
     args.push('--permission-mode', config.permissionMode)
   }
@@ -138,10 +138,7 @@ function buildClaudeArgs(userPrompt) {
     if (mode) {
       if (mode.dangerous) {
         args.push('--dangerously-skip-permissions')
-      } else if (mode.permissionMode) {
-        args.push('--permission-mode', mode.permissionMode)
       } else if (!config.allowedTools?.length) {
-        // Only add allowedTools if not already set from config
         args.push('--allowedTools', mode.allowedTools)
       }
     }

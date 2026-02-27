@@ -132,7 +132,7 @@ claude-pretty --permissions standard
 |--------------|---------------|----------------------------------------------|
 | **Safe**     | `--safe`      | Read, Glob, Grep                             |
 | **Standard** | `--permissions standard` | Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch |
-| **Full**     | `--full`      | All tools + MCPs (`--permission-mode acceptEdits`) |
+| **Full**     | `--full`      | All tools + MCPs (auto-approved via `--allowedTools`) |
 | **YOLO**     | `--yolo`      | All permissions bypassed (`--dangerously-skip-permissions`) |
 
 You can also set specific tools in `.claude-pretty.json`:
