@@ -5,22 +5,21 @@
 // ─────────────────────────────────────────────
 //
 // Uses `claude -p --output-format stream-json` to get structured
-// JSON output from Claude CLI, then renders it with visual styling.
+// JSON output, then renders it with visual styling.
+//
+// Session context is maintained via --resume between turns.
 //
 // Usage:
 //   claude-pretty --project "MES Intranet" --preset green
-//   claude-pretty --project "Extranet V2" --preset purple
-//   claude-pretty --project "GameXP" --color "#431407" --icon "🎮"
+//   claude-pretty --project "GameXP" --preset orange --yolo
+//   claude-pretty --preset cyan --permissions standard
 //   claude-pretty --preset cyan -- --model sonnet
-//
-// Or create .claude-pretty.json in your project root:
-//   { "project": "MES Intranet", "preset": "green" }
 
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import chalk from 'chalk'
 import { StreamJsonParser } from '../lib/parser.mjs'
-import { parseArgs, resolveConfig, PRESETS } from '../lib/config.mjs'
+import { parseArgs, resolveConfig, PRESETS, PERMISSION_MODES } from '../lib/config.mjs'
 import { setTitleBarConfig } from '../lib/theme.mjs'
 import THEME from '../lib/theme.mjs'
 import {
@@ -38,7 +37,7 @@ import {
   renderToolResult,
 } from '../lib/renderer.mjs'
 
-// ─── Parse args: separate wrapper flags from Claude flags ─
+// ─── Parse args ────────────────────────────────
 
 const { wrapperArgs, claudeArgs } = parseArgs(process.argv.slice(2))
 
@@ -70,47 +69,106 @@ setTitleBarConfig({
   sticky: config.sticky,
 })
 
-// ─── State ─────────────────────────────────────
+// ─── Session state ─────────────────────────────
 
+let sessionId = null      // Captured from first response, used for --resume
 let turnCount = 0
 let currentModel = config.model || ''
-let sessionActive = false
-let waitingForInput = false
+let permissionMode = config.permissions || ''
 let rl = null
 
-// ─── Banner ────────────────────────────────────
+// ─── Env for child processes ───────────────────
 
-console.log(renderHeader())
-console.log(THEME.dim('  Mode: stream-json (structured output)'))
-console.log()
+function buildEnv() {
+  const env = { ...process.env, TERM: 'xterm-256color' }
+  delete env.CLAUDECODE
+  return env
+}
 
-// ─── Build Claude command ──────────────────────
+// ─── Ask permission mode interactively ─────────
+
+async function askPermissionMode() {
+  const askRl = createInterface({ input: process.stdin, output: process.stdout })
+
+  console.log()
+  console.log(chalk.hex('#f97316').bold('  Permission mode:'))
+  console.log()
+  console.log(chalk.hex('#86efac')('  1) Safe')      + THEME.dim('       – Read-only (Read, Glob, Grep)'))
+  console.log(chalk.hex('#93c5fd')('  2) Standard')   + THEME.dim('   – Read + Write + Edit + Bash + search'))
+  console.log(chalk.hex('#fca5a5')('  3) YOLO')       + THEME.dim('       – All permissions bypassed (dangerous)'))
+  console.log()
+
+  return new Promise((resolve) => {
+    askRl.question(chalk.hex('#888')('  Choose [1/2/3]: '), (answer) => {
+      askRl.close()
+      const choice = answer.trim()
+      if (choice === '1' || choice === 'safe')     return resolve('safe')
+      if (choice === '3' || choice === 'yolo')     return resolve('yolo')
+      // Default to standard
+      return resolve('standard')
+    })
+  })
+}
+
+// ─── Build Claude args ─────────────────────────
 
 function buildClaudeArgs(userPrompt) {
   const args = ['-p', '--output-format', 'stream-json']
 
-  // Forward Claude-specific flags
+  // Resume session for multi-turn context
+  if (sessionId) {
+    args.push('--resume', sessionId)
+  }
+
+  // Permission handling (priority: CLI flags > .claude-pretty.json > interactive choice)
+  //
+  // 1. Explicit allowedTools from config (most specific)
+  if (config.allowedTools && config.allowedTools.length > 0) {
+    args.push('--allowedTools', config.allowedTools.join(','))
+  }
+  // 2. Claude's permissionMode from config
+  if (config.permissionMode) {
+    args.push('--permission-mode', config.permissionMode)
+  }
+  // 3. Shorthand permission mode (safe/standard/yolo)
+  if (permissionMode) {
+    const mode = PERMISSION_MODES[permissionMode]
+    if (mode) {
+      if (mode.dangerous) {
+        args.push('--dangerously-skip-permissions')
+      } else if (!config.allowedTools?.length) {
+        // Only add allowedTools if not already set from config
+        args.push('--allowedTools', mode.allowedTools)
+      }
+    }
+  }
+
+  // Forward Claude-specific flags (from -- separator)
   for (const arg of claudeArgs) {
     args.push(arg)
   }
 
-  // Add the user prompt
+  // User prompt
   args.push(userPrompt)
 
   return args
 }
 
-// ─── Create parser + wire up events ────────────
+// ─── Create parser + wire events ───────────────
 
 function createParser() {
   const parser = new StreamJsonParser()
 
-  parser.on('system_init', ({ model, version }) => {
+  parser.on('system_init', ({ model, version, sessionId: sid }) => {
+    // Capture session ID from first turn
+    if (sid && !sessionId) {
+      sessionId = sid
+    }
     if (model && !currentModel) {
       currentModel = model
       setTitleBarConfig({ model })
     }
-    if (version) {
+    if (version && turnCount === 1) {
       console.log(THEME.dim(`  Claude Code v${version}  ·  ${model || 'default'}`))
       console.log()
     }
@@ -136,14 +194,18 @@ function createParser() {
   })
 
   parser.on('tool_result', ({ content, file }) => {
-    // Show a compact summary of the tool result
     const display = file?.filePath || ''
     if (display) {
       console.log(renderToolResult(display))
     }
   })
 
-  parser.on('result', ({ success, durationMs, numTurns, costUsd }) => {
+  parser.on('result', ({ success, durationMs, numTurns, costUsd, sessionId: sid }) => {
+    // Capture session ID from result too
+    if (sid && !sessionId) {
+      sessionId = sid
+    }
+
     console.log()
     if (config.sticky) {
       console.log(renderStickyBar())
@@ -170,13 +232,12 @@ function createParser() {
   return parser
 }
 
-// ─── Run a single prompt through Claude ────────
+// ─── Run a single prompt ───────────────────────
 
 function runPrompt(userPrompt) {
-  waitingForInput = false
   turnCount++
 
-  // Show user input visually
+  // Show user input
   console.log(renderTimestamp())
   console.log(renderUserInput(userPrompt))
   console.log()
@@ -184,23 +245,17 @@ function runPrompt(userPrompt) {
   const parser = createParser()
   const args = buildClaudeArgs(userPrompt)
 
-  const env = { ...process.env, TERM: 'xterm-256color' }
-  delete env.CLAUDECODE  // Avoid "nested session" error
-
   const child = spawn('claude', args, {
     stdio: ['pipe', 'pipe', 'pipe'],
-    env,
+    env: buildEnv(),
   })
 
-  // Close stdin immediately – prompt is passed as CLI argument
   child.stdin.end()
 
-  // Parse stdout (stream-json, one JSON per line)
   child.stdout.on('data', (chunk) => {
     parser.feed(chunk.toString())
   })
 
-  // Stderr → errors
   child.stderr.on('data', (chunk) => {
     const text = chunk.toString().trim()
     if (text) {
@@ -210,12 +265,9 @@ function runPrompt(userPrompt) {
 
   child.on('close', (code) => {
     parser.flush()
-
     if (code !== 0 && code !== null) {
       console.log(renderError(`Claude exited with code ${code}`))
     }
-
-    // Prompt for next input
     promptForInput()
   })
 
@@ -235,8 +287,6 @@ function runPrompt(userPrompt) {
 // ─── Interactive prompt loop ───────────────────
 
 function promptForInput() {
-  waitingForInput = true
-
   if (!rl) {
     rl = createInterface({
       input: process.stdin,
@@ -251,9 +301,7 @@ function promptForInput() {
     })
   }
 
-  // Show the visual prompt
-  const promptStr = renderPrompt()
-  rl.question(promptStr, (answer) => {
+  rl.question(renderPrompt(), (answer) => {
     const trimmed = answer.trim()
     if (!trimmed) {
       promptForInput()
@@ -271,41 +319,65 @@ function promptForInput() {
   })
 }
 
-// ─── Handle piped input (non-interactive) ──────
+// ─── Pipe mode (non-interactive) ───────────────
 
 if (!process.stdin.isTTY) {
-  // Input is being piped – read all of stdin, run once
   let input = ''
   process.stdin.setEncoding('utf-8')
   process.stdin.on('data', (chunk) => { input += chunk })
   process.stdin.on('end', () => {
     const trimmed = input.trim()
-    if (trimmed) {
-      const parser = createParser()
-      const args = buildClaudeArgs(trimmed)
+    if (!trimmed) process.exit(0)
 
-      const pipeEnv = { ...process.env }
-      delete pipeEnv.CLAUDECODE
+    // In pipe mode, default to standard if not specified
+    if (!permissionMode) permissionMode = 'standard'
 
-      const child = spawn('claude', args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: pipeEnv,
-      })
+    console.log(renderHeader())
+    turnCount++
 
-      child.stdin.end()
-      child.stdout.on('data', (chunk) => parser.feed(chunk.toString()))
-      child.stderr.on('data', (chunk) => {
-        const text = chunk.toString().trim()
-        if (text) console.log(renderError(text))
-      })
-      child.on('close', (code) => {
-        parser.flush()
-        process.exit(code ?? 0)
-      })
-    }
+    const parser = createParser()
+    const args = buildClaudeArgs(trimmed)
+    const child = spawn('claude', args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: buildEnv(),
+    })
+
+    child.stdin.end()
+    child.stdout.on('data', (chunk) => parser.feed(chunk.toString()))
+    child.stderr.on('data', (chunk) => {
+      const text = chunk.toString().trim()
+      if (text) console.log(renderError(text))
+    })
+    child.on('close', (code) => {
+      parser.flush()
+      process.exit(code ?? 0)
+    })
   })
 } else {
-  // Interactive mode
-  sessionActive = true
-  promptForInput()
+  // ─── Interactive mode ──────────────────────────
+
+  console.log(renderHeader())
+
+  // Show permission mode badge
+  const modeLabel = permissionMode
+    ? PERMISSION_MODES[permissionMode]?.label || permissionMode
+    : null
+
+  if (modeLabel) {
+    const modeColor = permissionMode === 'yolo' ? '#fca5a5' : permissionMode === 'safe' ? '#86efac' : '#93c5fd'
+    console.log(THEME.dim('  Mode: stream-json') + chalk.hex(modeColor)(` [${modeLabel}]`))
+    console.log()
+    promptForInput()
+  } else {
+    // Ask user to choose permission mode
+    askPermissionMode().then((mode) => {
+      permissionMode = mode
+      const m = PERMISSION_MODES[mode]
+      const modeColor = mode === 'yolo' ? '#fca5a5' : mode === 'safe' ? '#86efac' : '#93c5fd'
+      console.log()
+      console.log(THEME.dim('  Mode: stream-json') + chalk.hex(modeColor)(` [${m.label}]`))
+      console.log()
+      promptForInput()
+    })
+  }
 }

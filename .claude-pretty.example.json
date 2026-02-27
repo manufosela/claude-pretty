@@ -4,5 +4,8 @@
   "model": "opus",
   "sticky": true,
   "showCwd": true,
-  "showTime": true
+  "showTime": true,
+  "permissions": "standard",
+  "permissionMode": "acceptEdits",
+  "allowedTools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
 }
