@@ -114,7 +114,7 @@ async function askPermissionMode() {
 
 // ─── Build Claude args ─────────────────────────
 
-function buildClaudeArgs(userPrompt) {
+function buildClaudeArgs() {
   const args = ['-p', '--output-format', 'stream-json']
 
   // Resume session for multi-turn context
@@ -148,9 +148,6 @@ function buildClaudeArgs(userPrompt) {
   for (const arg of claudeArgs) {
     args.push(arg)
   }
-
-  // User prompt
-  args.push(userPrompt)
 
   return args
 }
@@ -244,13 +241,15 @@ function runPrompt(userPrompt) {
   console.log()
 
   const parser = createParser()
-  const args = buildClaudeArgs(userPrompt)
+  const args = buildClaudeArgs()
 
   const child = spawn('claude', args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: buildEnv(),
   })
 
+  // Pass prompt via stdin (more reliable than positional arg with many flags)
+  child.stdin.write(userPrompt)
   child.stdin.end()
 
   child.stdout.on('data', (chunk) => {
@@ -337,12 +336,13 @@ if (!process.stdin.isTTY) {
     turnCount++
 
     const parser = createParser()
-    const args = buildClaudeArgs(trimmed)
+    const args = buildClaudeArgs()
     const child = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: buildEnv(),
     })
 
+    child.stdin.write(trimmed)
     child.stdin.end()
     child.stdout.on('data', (chunk) => parser.feed(chunk.toString()))
     child.stderr.on('data', (chunk) => {
