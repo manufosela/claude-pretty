@@ -235,10 +235,8 @@ function createParser() {
 function runPrompt(userPrompt) {
   turnCount++
 
-  // Show user input
+  // Show user input (timestamp only, text already visible from prompt)
   console.log(renderTimestamp())
-  console.log(renderUserInput(userPrompt))
-  console.log()
 
   const parser = createParser()
   const args = buildClaudeArgs()
